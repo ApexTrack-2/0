@@ -66,7 +66,7 @@ await ctx.addInitScript(([today, d1, d2, d3, d9]) => {
 await page.goto('http://localhost:8767/');
 await page.waitForSelector('.hero');
 await page.waitForTimeout(600);
-ok('Versión 2.2.2', await val(() => window.__apex.store.APP_VERSION) === '2.2.2');
+ok('Versión 2.2.3', await val(() => window.__apex.store.APP_VERSION) === '2.2.3');
 
 // --- Promedios sin el día en curso (a menos que sea tarde y esté la cena)
 const av = await val(() => { const s = window.__apex.store; return { a: s.averages(7), comp: s.dayComplete(new Date().toLocaleDateString('sv-SE')) }; });

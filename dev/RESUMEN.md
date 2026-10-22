@@ -1,9 +1,9 @@
-# ApexTrack 2 — Resumen para continuar (versión 2.2.2, 22/10/2026)
+# ApexTrack 2 — Resumen para continuar (versión 2.2.3, 22/10/2026)
 
 Complementa el resumen de la 2.3.0. Leé esto antes de tocar el código.
 
 ## Repositorio
-- `ignacioandino2005/apextrack-2.0`, rama `main`. La app está en la raíz (ya no hay carpeta `app/`). Las pruebas están en `dev/test` y se corren desde ahí (`npm install` en `dev/`).
+- **Repositorio actual: `ApexTrack-2/0`** (organización ApexTrack-2), rama `main`, publicado en **https://apextrack-2.github.io/0/**. El anterior (`ignacioandino2005/apextrack-2.0`, https://ignacioandino2005.github.io/ApexTrack-2.0/) queda como respaldo: no editarlo más. La app está en la raíz (ya no hay carpeta `app/`). Las pruebas están en `dev/test` y se corren desde ahí (`npm install` en `dev/`).
 - Versión: `APP_VERSION` en `js/store.js` y `VERSION` en `sw.js` (cambiar las dos en cada entrega).
 - **Numeración (desde el 22/10/2026)**: se pasó de 2.8.1 a **2.2.1** a pedido del usuario. En cada entrega se suma 1 al último dígito; al llegar a 10 vuelve a 0 y sube el del medio, y así (2.2.1 → 2.2.2 … 2.2.9 → 2.2.10 → 2.3.0; ante la duda, preguntar). Las secciones "2.4.0" a "2.8.0" de abajo son la numeración anterior.
 - Configuración del desarrollador: `js/config.js` (`GOOGLE_CLIENT_ID`, `COMMUNITY_URL`), ya cargados. La app de Google tiene que estar "En producción" (con la política de privacidad `privacidad.html`).
@@ -57,6 +57,12 @@ Complementa el resumen de la 2.3.0. Leé esto antes de tocar el código.
 1. **Deslizar entre pestañas sin saltos**: la vista corrida sobresalía del ancho y el celular reacomodaba la pantalla (la barra de abajo bajaba ~90 px medio segundo) → `html, body { overflow-x: clip }`. El parpadeo era la animación `fade` de `.view` que se repetía al sacar la clase → `.view.anim-done`. El cambio de pestaña usa `tab-from-r/l` (solo desplazamiento, sin transparencia) y el gesto de costado cancela el desplazamiento vertical del navegador (`touchmove` no pasivo).
 2. **Diario**: gimnasio y caminata el mismo día = dos rayitas, una arriba de la otra (gimnasio arriba). Color del gimnasio: gris en modo claro, blanco semitransparente en oscuro (`--mk-gym`, `--mk-gym-bg`); en el mes, fondo suave con borde.
 3. **Hoy**: "Fui" en negro en modo claro (blanco en oscuro: `var(--ink)`).
+
+## Novedades de la 2.2.3
+1. **Bienvenida más rápida y sin quedarse colgada**: mientras la persona escribe se "despierta" el servidor (`warmUp`, GET `?op=vapid`); la consulta se corta a los 35 s y muestra cuánto lleva; si la IA falla o no contesta, **plan B sin IA** (`OB.localPlan`: sexo, edad, altura, peso, objetivo, peso objetivo, kg por mes y días de gimnasio desde el texto). En el servidor (`planBienvenida_`): primero `gemini-3.5-flash` pensando lo mínimo, luego `flash-lite` y `flash-latest` sin pensar, temperatura 0,2, y la IA ya no calcula kcal ni macros (lo hace la app) → respuesta más corta. **Hay que pegar el `comunidad.gs` nuevo y publicar una versión nueva de la implementación.**
+2. **Nombre en la bienvenida** ("¿Cómo te llamás?", va a Perfil y metas) y aviso de términos.
+3. **Instalar como app** (`OB.installGuide`) al final del recorrido, después de la clave: botón "Instalar ahora" si Chrome lo ofrece (`beforeinstallprompt`) y pasos con los 3 puntitos, aceptar permisos y abrir desde el ícono (versión iPhone con Safari). No aparece si ya está instalada.
+4. **Uso y nombre siempre compartidos**: se quitaron "Contar mi uso" y "Decirle al desarrollador quién soy". El aviso diario (`CM.pingUsage`) lleva siempre el nombre del perfil y el contacto/mensaje de Ajustes → Privacidad → "Tu nombre y contacto". `privacidad.html` pasa a "Términos y privacidad".
 
 ## Pruebas (todas pasan salvo el caso Big Mac sin IA, que es esperable)
 `foods.test`, `offline.test`, `offline_extra`, `ai_pipeline.test`, `client.test` (incluye la consulta de respaldo), `local_first.test`, `server.test`, `backup.test`, `reminders.test`, `vapid.test`, `features.mjs` (50 controles, service worker real), `persist.mjs` (Drive y comunidad simulados, 22 controles), `e2e.mjs` (60 controles; el paso de la planilla V1 se omite si falta `ref/consolidado.xlsx`), `v221.mjs`. En `features.mjs` el control "¿Qué como?: lo que queda, historial y biblioteca" falla también sin estos cambios (depende de la hora del día): revisar.

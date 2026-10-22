@@ -342,14 +342,14 @@ function firmarJwt_(aud, privHex) {
 // ===========================================================================
 const PLAN_MAX_POR_TELEFONO = 2;
 const PLAN_MAX_POR_DIA = 300;
-const PLAN_MODELOS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+// Intentos en orden: rápido primero (pensar lo mínimo; las metas las calcula la app, la IA solo entiende los datos)
+const PLAN_INTENTOS = [['gemini-3.5-flash', 'minimal'], ['gemini-3.5-flash-lite', ''], ['gemini-flash-latest', '']];
 const PLAN_PROMPT = 'Sos nutricionista. Tu tarea principal es ENTENDER BIEN los datos de la persona a partir de lo que cuenta (español de Argentina, puede venir dictado): sexo, edad, altura, peso, peso objetivo, objetivo, nivel de actividad y días de gimnasio. La app calcula las metas con su propia fórmula a partir de esos datos.\n'
   + '- Altura en cm (\"1,60\" = 160). Peso en kg. Si dice la edad o el año de nacimiento, devolvé la edad.\n'
   + '- goal: bajar (bajar de peso o grasa), recomp (bajar grasa y ganar músculo, entrenando fuerza), mantener, subir (ganar peso o masa muscular).\n'
   + '- level, según su vida diaria y ejercicio: sedentario (trabajo sentado, sin ejercicio o casi), ligero (camina o entrena 1 a 3 veces por semana), moderado (entrena 3 a 5 veces), alto (6 a 7 veces o trabajo físico pesado). Si no lo dice, sedentario o ligero según el contexto, y ponelo en missing.\n'
   + '- gymDays: días por semana que entrena fuerza o va al gimnasio (0 si no va).\n'
   + '- Peso objetivo y plazo: si dice "quiero llegar a 75 kg en 6 meses" → goalWeightKg 75 y weeks 26 (1 mes = 4,35 semanas). Si dice un ritmo y un plazo ("subir 2 o 3 kg por mes durante 5 meses") → rateKgMonth 2,5, weeks 22 y goalWeightKg = peso actual + 2,5 × 5. Si solo dice el ritmo, rateKgMonth y weeks null. Si no dice nada de eso, todo null. Anotá lo que pide aunque sea muy rápido: la app lo limita a un ritmo sano.\n'
-  + '- Completá también kcal, protein, carbs, fat, sugarMax y waterMl con una estimación razonable: déficit del 20 % para bajar (nunca menos de 1.200 kcal en mujeres ni 1.500 en hombres); proteína 1,2-1,6 g por kg (1,6-2,0 si entrena fuerza), usando el peso ajustado si tiene sobrepeso; grasas 25-35 % de las calorías; carbohidratos el resto, de modo que 4·proteína + 4·carbohidratos + 9·grasas = kcal.\n'
   + '- diet: la forma de comer que elige o necesita: vegetariana, vegana, carnivora (solo carne y productos animales), keto, low_carb (baja en carbohidratos), mediterranea, alta_proteina, sin_gluten u omnivora (come de todo). Si no dice nada, sin_especificar.\n'
   + '- conditions: enfermedades o situaciones que menciona (diabetes, prediabetes o resistencia a la insulina, hipertension, colesterol o triglicéridos, hipotiroidismo, higado_graso, renal, gota o ácido úrico, celiaquia, embarazo, lactancia, tca = trastorno alimentario). Solo las que dice; nunca las supongas.\n'
   + '- proteinPerKg / proteinG: solo si dice cuánta proteína quiere ("2 a 2,2 g por kilo" → 2,1; "180 g de proteína" → proteinG 180).\n'
@@ -365,7 +365,6 @@ const PLAN_SCHEMA = {
     sex: { type: 'string', enum: ['m', 'f'] }, age: { type: ['number', 'null'] }, heightCm: { type: ['number', 'null'] }, weightKg: { type: ['number', 'null'] },
     goalWeightKg: { type: ['number', 'null'] }, weeks: { type: ['number', 'null'], description: 'Semanas en que quiere lograr el peso objetivo' }, rateKgMonth: { type: ['number', 'null'], description: 'Kg por mes que quiere subir o bajar, si lo dice' }, goal: { type: 'string', enum: ['bajar', 'recomp', 'mantener', 'subir'] },
     level: { type: 'string', enum: ['sedentario', 'ligero', 'moderado', 'alto'] }, gymDays: { type: ['number', 'null'] },
-    kcal: { type: 'number' }, protein: { type: 'number' }, carbs: { type: 'number' }, fat: { type: 'number' }, sugarMax: { type: 'number' }, waterMl: { type: 'number' },
     diet: { type: 'string', enum: ['sin_especificar', 'omnivora', 'vegetariana', 'vegana', 'carnivora', 'keto', 'low_carb', 'mediterranea', 'alta_proteina', 'sin_gluten'] }, conditions: { type: 'array', items: { type: 'string', enum: ['diabetes', 'prediabetes', 'hipertension', 'colesterol', 'hipotiroidismo', 'higado_graso', 'renal', 'gota', 'celiaquia', 'embarazo', 'lactancia', 'tca'] } }, proteinPerKg: { type: ['number', 'null'] }, proteinG: { type: ['number', 'null'] }, carbsMax: { type: ['number', 'null'] }, preferences: { type: 'string' },
     explanation: { type: 'string' }, missing: { type: 'array', items: { type: 'string' } }, caution: { type: 'string' },
   },
@@ -387,10 +386,11 @@ function planBienvenida_(body) {
   if (usos >= PLAN_MAX_POR_TELEFONO) return { ok: false, error: 'usado' };
   const pedido = 'Hoy es ' + Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd') + '.\nLo que cuenta la persona:\n«' + texto + '»';
   let ultimo = '';
-  for (const modelo of PLAN_MODELOS) {
-    for (const pensar of [true, false]) {
-      const cfg = { responseMimeType: 'application/json', responseJsonSchema: PLAN_SCHEMA };
-      if (pensar) cfg.thinkingConfig = { thinkingLevel: 'low' };
+  for (const intento of PLAN_INTENTOS) {
+    const modelo = intento[0];
+    for (const pensar of intento[1] ? [intento[1], ''] : ['']) {
+      const cfg = { responseMimeType: 'application/json', responseJsonSchema: PLAN_SCHEMA, temperature: 0.2, maxOutputTokens: 1200 };
+      if (pensar) cfg.thinkingConfig = { thinkingLevel: pensar };
       const res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
         method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
         payload: JSON.stringify({ systemInstruction: { parts: [{ text: PLAN_PROMPT }] }, contents: [{ role: 'user', parts: [{ text: pedido }] }], generationConfig: cfg }),

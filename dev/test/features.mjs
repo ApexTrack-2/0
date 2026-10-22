@@ -65,6 +65,7 @@ await page.waitForSelector('.hero');
 // --- Bienvenida: datos → metas con la IA de bienvenida → pestaña → recorrido → clave propia
 await page.waitForSelector('.sheet-wrap .opt[data-v="nuevo"]', { timeout: 5000 });
 await sheetTop().locator('.opt[data-v="nuevo"]').click(); await page.waitForTimeout(500);
+await sheetTop().locator('#ob-name').fill('Nacho');
 await sheetTop().locator('#ob-text').fill('Tengo 28 años, soy hombre, mido 1,78 y peso 84 kg. Voy al gimnasio 4 veces por semana y quiero bajar grasa.');
 await sheetTop().locator('[data-o="calc"]').click(); await page.waitForTimeout(1200);
 await shot('f00-bienvenida-metas');
@@ -88,6 +89,11 @@ ok('Al final lleva a crear la clave propia', /Último paso: tu clave de IA/.test
 await sheetTop().locator('[data-k="paste"]').click(); await page.waitForTimeout(500);
 ok('"Ya la copié" abre la configuración de la clave', await sheetTop().locator('#ai-key').count() === 1);
 await closeSheet();
+const ig = await sheetTop().innerText();
+await shot('f00d-instalar');
+ok('Después de la clave explica cómo instalarla desde Chrome', /Instalá ApexTrack como app/.test(ig) && /3 puntitos/.test(ig) && /Permitir/.test(ig), ig.replace(/\s+/g, ' ').slice(0, 120));
+await sheetTop().locator('[data-i="ok"]').click(); await page.waitForTimeout(400);
+ok('Guarda el nombre de la bienvenida', await val(() => window.__apex.store.S().settings.profile.name) === 'Nacho');
 ok('La clave de bienvenida no se vuelve a usar', (await val(async () => { const m = await import('./js/onboarding.js'); return m.aboutYou ? true : false; })) && comm.plans === 1);
 // datos de la semana pasada y de hoy
 await val(() => {
@@ -134,17 +140,15 @@ ok('Tamaño del texto: Muy grande (todo escala y no se corta)', Math.abs(vw.w - 
 await sheetTop().locator('[data-s="texto"]').click(); await page.waitForTimeout(300);
 await sheetTop().locator('.opt[data-v="1"]').click(); await page.waitForTimeout(300);
 ok('Volver a Normal deja el tamaño original', (await val(() => window.innerWidth)) === 412);
-// privacidad: contador anónimo e identificación opcional
+// privacidad: el nombre se comparte siempre (términos); ya no hay opciones para apagarlo
+await page.evaluate(() => window.__apex.render());
+ok('Sin opciones de "Contar mi uso" ni "Decirle quién soy"', await sheetTop().locator('[data-s="cuenta"]').count() === 0 && /Tu nombre y contacto/.test(await sheetTop().innerText()));
 await sheetTop().locator('[data-s="quien"]').click(); await page.waitForTimeout(300);
 await sheetTop().locator('#id-name').fill('Caro'); await sheetTop().locator('#id-contact').fill('caro@mail.com');
 await sheetTop().locator('[data-i="on"]').click(); await page.waitForTimeout(800);
 const pings = comm.posts.filter((x) => x.op === 'ping');
-ok('Identificarse: se envía nombre y contacto solo si la persona lo elige', pings.length >= 1 && pings[pings.length - 1].ident?.name === 'Caro' && /^ins_/.test(pings[pings.length - 1].install), JSON.stringify(pings[pings.length - 1]).slice(0, 120));
-ok('Antes de elegirlo, los avisos de uso iban sin nombre', pings.slice(0, -1).every((x) => !x.ident));
-await sheetTop().locator('[data-s="quien"]').click(); await page.waitForTimeout(300);
-await sheetTop().locator('[data-i="off"]').click(); await page.waitForTimeout(800);
-const lastPing = comm.posts.filter((x) => x.op === 'ping').pop();
-ok('Dejar de compartir avisa para borrar el nombre', lastPing.ident === null);
+ok('El aviso de uso lleva el nombre y el contacto', pings.length >= 1 && pings[pings.length - 1].ident?.name === 'Caro' && pings[pings.length - 1].ident?.contact === 'caro@mail.com' && /^ins_/.test(pings[pings.length - 1].install), JSON.stringify(pings[pings.length - 1]).slice(0, 120));
+ok('El nombre queda también en Perfil y metas', await val(() => window.__apex.store.S().settings.profile.name) === 'Caro');
 // --- Recordatorios
 await sheetTop().locator('[data-s="avisos"]').click(); await page.waitForTimeout(400);
 await shot('f03-recordatorios');

@@ -19,7 +19,7 @@ así que no hace falta que Google revise la app.
      entrar las cuentas que agregues como usuarios de prueba (máximo 100).
 4. **APIs y servicios → Credenciales → Crear credenciales → ID de cliente de OAuth**:
    - Tipo: **Aplicación web**.
-   - Orígenes de JavaScript autorizados: `https://ignacioandino2005.github.io`
+   - Orígenes de JavaScript autorizados: `https://apextrack-2.github.io` (y el anterior `https://ignacioandino2005.github.io`)
    - (No hacen falta URI de redireccionamiento.)
 5. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y pegalo en `js/config.js`,
    en `GOOGLE_CLIENT_ID`. Ese ID es público: no es una clave secreta.

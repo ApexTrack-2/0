@@ -649,9 +649,8 @@ export function openSettings(section = null) {
       ${row('borrar', 'trash', 'Borrar todos los datos', '')}
     </div>
     <div class="set-group"><h3>Privacidad</h3>
-      ${CM.available() ? `${row('cuenta', 'chart', 'Contar mi uso (anónimo)', 'Avisa una vez por día que la app se usa, con un número al azar. Nada que te identifique.', CM.privacy().count === false ? 'No' : 'Sí')}
-      ${row('quien', 'user', 'Decirle al desarrollador quién soy', CM.privacy().ident.on ? `Compartiendo: ${esc(CM.privacy().ident.name || CM.privacy().ident.contact || 'sin nombre')}` : 'Opcional: tu nombre o contacto, para que sepa quién usa la app')}` : ''}
-      ${row('privpol', 'info', 'Política de privacidad', 'Qué datos usa la app y dónde se guardan')}
+      ${CM.available() ? row('quien', 'user', 'Tu nombre y contacto', `${esc(S.settings.profile.name || CM.privacy().ident.name || 'Sin nombre')} · los ve el desarrollador`) : ''}
+      ${row('privpol', 'info', 'Términos y privacidad', 'Qué datos usa la app, qué se comparte y dónde se guarda')}
     </div>
     <div class="set-group"><h3>Compartir</h3>
       ${row('share', 'send', 'Compartir la app', 'Cada persona usa su propio teléfono, sus datos y su clave')}
@@ -692,7 +691,6 @@ export function openSettings(section = null) {
     else if (k === 'recover') openRecover();
     else if (k === 'share') shareApp();
     else if (k === 'avisos') openReminders();
-    else if (k === 'cuenta') { const pv = CM.privacy(); pv.count = pv.count === false; store.commit('privacidad'); if (pv.count) CM.pingUsage({ force: true }).catch(() => {}); toast(pv.count ? 'Gracias: tu uso se cuenta de forma anónima' : 'Listo: no se cuenta tu uso'); }
     else if (k === 'quien') openIdentify();
     else if (k === 'privpol') window.open('./privacidad.html', '_blank', 'noopener');
     else if (k === 'semanal') {
@@ -800,6 +798,7 @@ function openAISettings() {
   s.body.addEventListener('click', handler);
   s.foot.addEventListener('click', handler);
   s.done.then(() => { readInputs(); store.commit('ia'); });
+  return s;
 }
 
 // ---------- Banco de pruebas de la IA (no guarda nada) ----------
@@ -1350,7 +1349,9 @@ export async function maybeOnboard() {
   if (v) { S.settings.ui.slotTab = v; store.commit('slot'); }
   // 3) mini recorrido y 4) su propia clave
   await OB.miniTour();
-  if ((await OB.keyIntro()) === 'paste') openAISettings();
+  if ((await OB.keyIntro()) === 'paste') await openAISettings()?.done;
+  // 5) instalarla como app desde Chrome
+  await OB.installGuide();
 }
 
 // ===========================================================================
@@ -1430,24 +1431,24 @@ Object.assign(moreActions, {
   'insight-open': (el) => openInsight(el.dataset.id),
 });
 
-// Identificarse ante el desarrollador (opcional, con consentimiento explícito)
+// Nombre y contacto para el desarrollador (se comparten siempre: figura en los términos)
 function openIdentify() {
   const id = CM.privacy().ident;
-  const s = openSheet({ title: 'Decirle al desarrollador quién soy', body: `
-    <p class="muted pad-b">Es opcional. Si lo activás, una vez por día la app le manda al desarrollador lo que escribas acá, junto con cuántas comidas registraste. <b>Nunca</b> se envían tus comidas, tu peso, tus metas ni tu clave. Lo podés apagar cuando quieras y se deja de enviar.</p>
-    <label class="field"><span>Nombre o apodo</span><input class="input" id="id-name" value="${esc(id.name || '')}" autocomplete="name" placeholder="Ej.: Caro"></label>
+  const P = store.S().settings.profile;
+  const s = openSheet({ title: 'Tu nombre y contacto', body: `
+    <p class="muted pad-b">Una vez por día la app le avisa al desarrollador que la usás, con tu nombre, este contacto y cuántas comidas registraste, para saber quiénes la usan. <b>Nunca</b> se envían tus comidas, tu peso, tus metas ni tu clave.</p>
+    <label class="field"><span>Nombre</span><input class="input" id="id-name" value="${esc(P.name || id.name || '')}" autocomplete="name" placeholder="Ej.: Caro"></label>
     <label class="field" style="margin-top:10px"><span>Contacto (opcional)</span><input class="input" id="id-contact" value="${esc(id.contact || '')}" autocomplete="email" placeholder="Correo, Instagram o teléfono"></label>
     <label class="field" style="margin-top:10px"><span>Un mensaje para el desarrollador (opcional)</span><textarea class="input" id="id-note" rows="3" placeholder="Sugerencias, problemas, qué te gusta…">${esc(id.note || '')}</textarea></label>`,
-  footer: `${id.on ? '<button class="btn ghost" data-i="off">Dejar de compartir</button>' : ''}<button class="btn primary" data-i="on">${id.on ? 'Guardar' : 'Compartir'}</button>` });
+  footer: '<button class="btn primary" data-i="on">Guardar</button>' });
   s.foot.addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-i]'); if (!b) return;
-    if (b.dataset.i === 'off') { Object.assign(id, { on: false, name: '', contact: '', note: '' }); store.commit('privacidad'); s.close(); CM.pingUsage({ force: true, always: true }).catch(() => {}); toast('Listo: tu nombre se borra del registro del desarrollador'); return; }
+    if (!e.target.closest('[data-i]')) return;
     const name = s.body.querySelector('#id-name').value.trim(); const contact = s.body.querySelector('#id-contact').value.trim(); const note = s.body.querySelector('#id-note').value.trim();
-    if (!name && !contact) { toast('Escribí al menos un nombre o un contacto', { kind: 'error' }); return; }
-    Object.assign(id, { on: true, name, contact, note });
+    if (!name) { toast('Escribí tu nombre', { kind: 'error' }); return; }
+    P.name = name; Object.assign(id, { on: true, name, contact, note });
     store.commit('privacidad'); s.close();
     const okSent = await CM.pingUsage({ force: true }).catch(() => false);
-    toast(okSent ? '¡Gracias! El desarrollador ya sabe que usás la app' : 'Guardado: se envía cuando haya conexión', { ms: 4000 });
+    toast(okSent ? 'Guardado' : 'Guardado: se envía cuando haya conexión');
   });
 }
 

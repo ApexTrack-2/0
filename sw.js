@@ -2,7 +2,7 @@
 // (aunque la app esté cerrada) y recibe capturas compartidas desde otras apps (reloj, Samsung Health).
 import { dueNow, evaluate } from './js/reminders-core.js';
 
-const VERSION = 'apextrack-2.2.2';
+const VERSION = 'apextrack-2.2.3';
 const CORE = [
   './', './index.html', './manifest.webmanifest', './css/app.css', './fonts/archivo.woff2',
   './js/app.js', './js/more.js', './js/store.js', './js/foods.js', './js/ai.js', './js/ui.js', './js/util.js',

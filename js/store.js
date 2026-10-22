@@ -4,7 +4,7 @@ import { todayISO, uid, addDays, dateRange, weekStart, round1, round0, deepClone
 import { setCustomFoods, calc, getFood, foodUnits, unitLabel, canonUnit, sanitizePer100 } from './foods.js';
 import { defaultReminders } from './reminders-core.js';
 
-export const APP_VERSION = '2.2.2';
+export const APP_VERSION = '2.2.3';
 const SCHEMA = 1;
 const DB_NAME = 'apextrack';
 const DB_STORE = 'kv';
